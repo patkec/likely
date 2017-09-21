@@ -9,7 +9,16 @@
 module.exports = {
   /** Retrieves information about specified user. */
   findOne: async function(req, res) {
-    return res.serverError('Not implemented!');
+    try {
+      const id = req.param('id');
+      const user = await User.findOneById(id)
+      if (!user) {
+        return res.notFound();
+      }
+      return res.ok(user);
+    } catch (err) {
+      return res.negotiate(err);
+    }
   },
 
   /** Adds a like from current user to specified user. */

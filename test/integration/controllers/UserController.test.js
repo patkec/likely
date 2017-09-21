@@ -9,7 +9,7 @@ describe('UserController', function() {
     sails.emit('hook:orm:reload');
   });
 
-  describe('#findOne', function() {
+  describe('#findOne()', function() {
     it('should return notFound if user with id does not exist', async function() {
       await request(sails.hooks.http.app)
         .get('/user/666')
@@ -28,6 +28,27 @@ describe('UserController', function() {
       await request(sails.hooks.http.app)
         .get(`/user/${user.id}`)
         .expect(200, user.toJSON());
+    });
+  });
+
+  describe('#mostLiked()', function() {
+    it('should return users sorted from most to least liked', async function() {
+      const userCount = 10;
+      const tasks = [];
+      for (let i = 0; i < userCount; i++) {
+        tasks.push(User.create({ username: `user${i}`, password: 'test', numLikes: i }));
+      }
+      await Promise.all(tasks);
+
+      await request(sails.hooks.http.app)
+        .get('/most-liked/')
+        .expect(200)
+        .then((response) => {
+          expect(response.body.length).to.equal(userCount);
+          for (i = 0; i < userCount; i++) {
+            expect(response.body[i].numLikes).to.equal(userCount - i - 1);
+          }
+        });
     });
   });
 });

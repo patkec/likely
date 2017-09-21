@@ -34,7 +34,7 @@ module.exports.routes = {
 
   '/': {
     view: 'homepage'
-  }
+  },
 
   /***************************************************************************
   *                                                                          *
@@ -45,5 +45,14 @@ module.exports.routes = {
   * for configuration options and examples.                                  *
   *                                                                          *
   ***************************************************************************/
+
+  'post /signup': 'AuthController.signup',
+  'post /login': 'AuthController.login',
+  'get /me': 'AuthController.profile',
+  'put /me/update-password': 'AuthController.updatePassword',
+  'get /most-liked': 'UserController.mostLiked',
+  'get /user/:id': 'UserController.findOne',
+  'post /user/:id/like': 'UserController.like',
+  'post /user/:id/unlike': 'UserController.unlike'
 
 };

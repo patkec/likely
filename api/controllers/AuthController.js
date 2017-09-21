@@ -23,7 +23,18 @@ module.exports = {
 
   /** Performs a login of a user with username and password. */
   login: async function(req, res) {
-    return res.serverError('Not implemented!');
+    try {
+      if (req.body.username && req.body.password) {
+        const user = await User.findOneByUsername(req.body.username);
+        if (user && await user.validatePassword(req.body.password)) {
+          const token = await JWT.issue({ sub: user.id });
+          return res.ok({ token });
+        }
+      }
+      return res.forbidden('Invalid username or password.');
+    } catch (err) {
+      return res.negotiate(err);
+    }
   },
 
   /** Updates password for current user. */

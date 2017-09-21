@@ -58,4 +58,65 @@ describe('AuthController', function() {
       });
     });
   });
+
+  describe('#updatePassword', function() {
+    it('should return error if auth token not provided', async function(){
+      await request(sails.hooks.http.app)
+        .put('/me/update-password')
+        .expect(401);
+    });
+
+    it('should return error if auth token invalid', async function(){
+      await request(sails.hooks.http.app)
+        .put('/me/update-password')
+        .set('Authorization', 'Bearer someWeirdToken')
+        .expect(401);
+    });
+
+    describe('with valid token', function() {
+      let token;
+      let oldPassword;
+
+      beforeEach(async function() {
+        const user = await User.create({ username: 'test', password: 'test' });
+        oldPassword = user.password;
+        token = await JWT.issue({ sub: user.id });
+      });
+
+      it('should return error if old password is invalid', async function() {
+        await request(sails.hooks.http.app)
+          .put('/me/update-password')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ oldPassword: 'test123', newPassword: 'test435' })
+          .expect(400);
+
+        const user = await User.findOneByUsername('test');
+        expect(user.password).to.be.equal(oldPassword);
+      });
+
+      describe('and valid old password', function() {
+        it('should change password to new password', async function() {
+          await request(sails.hooks.http.app)
+            .put('/me/update-password')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ oldPassword: 'test', newPassword: 'test123' })
+            .expect(200);
+
+          const user = await User.findOneByUsername('test');
+          expect(user.password).not.to.be.equal(oldPassword);
+        });
+
+        it('should return error if new password is empty', async function() {
+          await request(sails.hooks.http.app)
+            .put('/me/update-password')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ oldPassword: 'test' })
+            .expect(400);
+
+          const user = await User.findOneByUsername('test');
+          expect(user.password).to.be.equal(oldPassword);
+        });
+      });
+    });
+  });
 });

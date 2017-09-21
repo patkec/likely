@@ -39,7 +39,21 @@ module.exports = {
 
   /** Updates password for current user. */
   updatePassword: async function(req, res) {
-    return res.serverError('Not implemented!');
+    try {
+      const user = await User.findOneById(req.userId);
+      if (!user) {
+        return res.serverError('Current user not valid.')
+      }
+
+      if (req.body.newPassword && await user.validatePassword(req.body.oldPassword)) {
+        user.password = req.body.newPassword;
+        await user.save();
+        return res.ok();
+      }
+      return res.badRequest('Invalid password.');
+    } catch (err) {
+      return res.negotiate(err);
+    }
   },
 
   /** Retrieves user information about current user. */

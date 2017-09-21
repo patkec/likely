@@ -8,9 +8,15 @@ describe('UserModel', function() {
     sails.emit('hook:orm:reload');
   });
 
-  it('should automatically hash a password on save', async function() {
+  it('should automatically hash a password on create', async function() {
     const user = await User.create({ username: 'test', password: 'test' });
     expect(user.password).to.not.equal('test');
+  });
+
+  it('should automatically hash a password on create', async function() {
+    await User.create({ username: 'test', password: 'test' });
+    const user = await User.update({ username: 'test' }, { password: 'updated' });
+    expect(user.password).to.not.equal('updated');
   });
 
   describe('#toJSON()', function() {

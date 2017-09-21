@@ -2,6 +2,8 @@ const sails = require('sails');
 const expect = require('expect.js');
 const request = require('supertest');
 
+const helpers = require('./helpers');
+
 describe('AuthController', function() {
   beforeEach(function(done) {
     // Drops database between each test.  This works because we use the memory database
@@ -60,18 +62,7 @@ describe('AuthController', function() {
   });
 
   describe('#updatePassword', function() {
-    it('should return error if auth token not provided', async function(){
-      await request(sails.hooks.http.app)
-        .put('/me/update-password')
-        .expect(401);
-    });
-
-    it('should return error if auth token invalid', async function(){
-      await request(sails.hooks.http.app)
-        .put('/me/update-password')
-        .set('Authorization', 'Bearer someWeirdToken')
-        .expect(401);
-    });
+    helpers.testAuthentication((endpoint) => endpoint.put('/me/update-password'));
 
     describe('with valid token', function() {
       let token;
@@ -116,6 +107,29 @@ describe('AuthController', function() {
           const user = await User.findOneByUsername('test');
           expect(user.password).to.be.equal(oldPassword);
         });
+      });
+    });
+  });
+
+  describe('#profile()', function() {
+    helpers.testAuthentication((endpoint) => endpoint.get('/me'));
+
+    describe('with valid token', function() {
+      let token;
+
+      beforeEach(async function() {
+        const user = await User.create({ username: 'test', password: 'test' });
+        token = await JWT.issue({ sub: user.id });
+      });
+
+      it('should return current user information', async function() {
+        await request(sails.hooks.http.app)
+          .get('/me')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200)
+          .then((response) => {
+            expect(response.body.username).to.equal('test');
+          });
       });
     });
   });

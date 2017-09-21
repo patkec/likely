@@ -58,6 +58,14 @@ module.exports = {
 
   /** Retrieves user information about current user. */
   profile: async function(req, res) {
-    return res.serverError('Not implemented!');
+    try {
+      const user = await User.findOneById(req.userId);
+      if (!user) {
+        return res.serverError('Current user not valid.')
+      }
+      return res.ok(user);
+    } catch (err) {
+      return res.negotiate(err);
+    }
   }
 }

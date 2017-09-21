@@ -115,21 +115,14 @@ describe('AuthController', function() {
     helpers.testAuthentication((endpoint) => endpoint.get('/me'));
 
     describe('with valid token', function() {
-      let token;
-
-      beforeEach(async function() {
-        const user = await User.create({ username: 'test', password: 'test' });
-        token = await JWT.issue({ sub: user.id });
-      });
-
       it('should return current user information', async function() {
+        const user = await User.create({ username: 'test', password: 'test' });
+        const token = await JWT.issue({ sub: user.id });
+
         await request(sails.hooks.http.app)
           .get('/me')
           .set('Authorization', `Bearer ${token}`)
-          .expect(200)
-          .then((response) => {
-            expect(response.body.username).to.equal('test');
-          });
+          .expect(200, user.toJSON());
       });
     });
   });

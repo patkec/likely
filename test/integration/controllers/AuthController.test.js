@@ -56,7 +56,7 @@ describe('AuthController', function() {
         await request(sails.hooks.http.app)
           .post('/login')
           .send({ username: test.username, password: test.password })
-          .expect(403);
+          .expect(401);
       });
     });
   });

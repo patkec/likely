@@ -31,7 +31,7 @@ module.exports = {
           return res.ok({ token });
         }
       }
-      return res.forbidden('Invalid username or password.');
+      return res.unauthorized('Invalid username or password.');
     } catch (err) {
       return res.negotiate(err);
     }

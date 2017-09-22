@@ -12,8 +12,8 @@ async function hashPassword(values, cb) {
     if (values.password) {
       const hashedPassword = await promisify(bcrypt.hash)(values.password, 10);
       values.password = hashedPassword;
-      cb();
     }
+    cb();
   } catch (err) {
     cb(err);
   }
@@ -40,7 +40,7 @@ module.exports = {
 
     toJSON: function() {
       // Only return public properties.
-      const obj = _.pick(this, [ 'username', 'numLikes' ]);
+      const obj = _.pick(this, [ 'id', 'username', 'numLikes' ]);
       return obj;
     },
 

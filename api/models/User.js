@@ -39,9 +39,8 @@ module.exports = {
     },
 
     toJSON: function() {
-      const obj = this.toObject();
-      // Don't expose password to the outside world.
-      delete obj.password;
+      // Only return public properties.
+      const obj = _.pick(this, [ 'username', 'numLikes' ]);
       return obj;
     },
 

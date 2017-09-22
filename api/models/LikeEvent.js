@@ -1,7 +1,7 @@
 /**
- * Like.js
+ * LikeEvent.js
  *
- * @description :: Represents a single like from one user to another.
+ * @description :: Represents a single like event from one user to another.
  * @docs        :: http://sailsjs.org/documentation/concepts/models-and-orm/models
  */
 

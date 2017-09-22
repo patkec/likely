@@ -5,6 +5,41 @@
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
 
+async function processLike(req, res, modifier, requireEvents) {
+  const id = req.param('id');
+  if (req.userId === id) {
+    return res.badRequest('User can only like/unlike other users.');
+  }
+
+  try {
+    let user = await User.findOneById(id);
+    if (!user) {
+      return res.notFound(`User with id ${id} not found.`);
+    }
+
+    // User can only like another user once. User can also not unlike other user if not liked previously.
+    // Check the list of events what is the last event and act accordingly.
+    const where = { fromUser: req.userId, toUser: user.id };
+    const lastLikeEvent = await LikeEvent.find({ where, sort: 'id DESC', limit: 1 });
+    if ((requireEvents && lastLikeEvent.length === 0) || (lastLikeEvent.length && lastLikeEvent[0].modifier === modifier)) {
+      return res.badRequest('Cannot like/unlike user multiple times.');
+    }
+
+    const likeEvent = await LikeEvent.create({ fromUser: req.userId, toUser: user.id, modifier });
+    // We do a classical loop of "interlocked compare exchange". We want to update the user from the state when it was loaded.
+    // If it was changed during our processing then we load fresh copy of the user and try again.
+    let updatedRecords = await User.update({ id: user.id, updatedAt: user.updatedAt }, { numLikes: user.numLikes + modifier });
+    while (updatedRecords.length !== 1) {
+      user = await User.findOneById(id);
+      updatedRecords = await User.update({ id: user.id, updatedAt: user.updatedAt }, { numLikes: user.numLikes + modifier });
+    }
+
+    return res.ok();
+  } catch (err) {
+    return res.negotiate(err);
+  }
+}
+
 /** Public methods */
 module.exports = {
   /** Retrieves information about specified user. */
@@ -23,29 +58,18 @@ module.exports = {
 
   /** Adds a like from current user to specified user. */
   like: async function(req, res) {
-    return res.serverError('Not implemented!');
+    await processLike(req, res, 1, false /* requireEvents */);
   },
 
   /** Removes a like from current user to specified user. */
   unlike: async function(req, res) {
-    return res.serverError('Not implemented!');
+    await processLike(req, res, -1, true /* requireEvents */);
   },
 
   /** Retrieves users with likes, sorted by most liked to least liked. */
   mostLiked: async function(req, res) {
     try {
-      const users = await User.find();
-
-      users.sort((userA, userB) => {
-        // Most liked to least liked.
-        let result = userB.numLikes - userA.numLikes;
-        if (result === 0) {
-          // Always return in the same order, even if users have equal number of likes.
-          // Users with smaller id to bigger id.
-          result = userA.id - userB.id;
-        }
-        return result;
-      });
+      const users = await User.find({ sort: { numLikes: -1, id: 1 }});
       return res.ok(users);
     } catch (err) {
       return res.negotiate(err);

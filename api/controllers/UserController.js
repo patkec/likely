@@ -5,18 +5,7 @@
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
 
-async function isLastEventValid(fromUser, toUser, modifier, requireEvents) {
-  // User can only like another user once. User can also not unlike other user if not liked previously.
-  // Check the list of events what is the last event and act accordingly.
-  const where = { fromUser, toUser };
-  let lastLikeEvent = _.first(await LikeEvent.find({ where, sort: 'id DESC', limit: 1 }));
-  if ((requireEvents && !lastLikeEvent) || (lastLikeEvent && lastLikeEvent.modifier === modifier)) {
-    return false;
-  }
-  return true;
-}
-
-async function processLike(req, res, modifier, requireEvents) {
+async function processLike(req, res, modifier) {
   const id = req.param('id');
   if (req.userId === id) {
     return res.badRequest('User can only like/unlike other users.');
@@ -28,7 +17,9 @@ async function processLike(req, res, modifier, requireEvents) {
       return res.notFound(`User with id ${id} not found.`);
     }
 
-    if (!await isLastEventValid(req.userId, user.id, modifier, requireEvents)) {
+    const isLikeEvent = modifier === 1;
+    // Cannot have two events of same type in a row (two likes or two unlikes).
+    if (isLikeEvent === await user.hasLikeFrom(req.userId)) {
       return res.badRequest('Cannot like/unlike user multiple times.');
     }
 
@@ -38,7 +29,7 @@ async function processLike(req, res, modifier, requireEvents) {
     let updatedRecords = await User.update({ id: user.id, numLikes: user.numLikes }, { numLikes: user.numLikes + modifier });
     while (updatedRecords.length !== 1) {
       // We have to recheck the last event in case the current user just liked the user (issuing multiple parallel requests).
-      if (!await isLastEventValid(req.userId, user.id, modifier, requireEvents)) {
+      if (isLikeEvent === await user.hasLikeFrom(req.userId)) {
         return res.badRequest('Cannot like/unlike user multiple times.');
       }
       // Fetch fresh user information and try again.
@@ -70,12 +61,12 @@ module.exports = {
 
   /** Adds a like from current user to specified user. */
   like: async function(req, res) {
-    await processLike(req, res, 1, false /* requireEvents */);
+    await processLike(req, res, 1);
   },
 
   /** Removes a like from current user to specified user. */
   unlike: async function(req, res) {
-    await processLike(req, res, -1, true /* requireEvents */);
+    await processLike(req, res, -1);
   },
 
   /** Retrieves users with likes, sorted by most liked to least liked. */

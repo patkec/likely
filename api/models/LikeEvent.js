@@ -18,6 +18,7 @@ module.exports = {
         required: true
       },
 
+      /** Indicates a like modifier, +1 for like, -1 for unlike. */
       modifier: {
         type: 'integer',
         required: true,

@@ -38,6 +38,12 @@ module.exports = {
       defaultsTo: 0
     },
 
+    hasLikeFrom: async function(user) {
+      const where = { fromUser: user, toUser: this.id };
+      let lastLikeEvent = _.first(await LikeEvent.find({ where, sort: 'id DESC', limit: 1 }));
+      return !!lastLikeEvent && lastLikeEvent.modifier === 1;
+    },
+
     toJSON: function() {
       // Only return public properties.
       const obj = _.pick(this, [ 'id', 'username', 'numLikes' ]);

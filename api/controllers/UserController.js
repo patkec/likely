@@ -5,6 +5,17 @@
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
 
+async function isLastEventValid(fromUser, toUser, modifier, requireEvents) {
+  // User can only like another user once. User can also not unlike other user if not liked previously.
+  // Check the list of events what is the last event and act accordingly.
+  const where = { fromUser, toUser };
+  let lastLikeEvent = _.first(await LikeEvent.find({ where, sort: 'id DESC', limit: 1 }));
+  if ((requireEvents && !lastLikeEvent) || (lastLikeEvent && lastLikeEvent.modifier === modifier)) {
+    return false;
+  }
+  return true;
+}
+
 async function processLike(req, res, modifier, requireEvents) {
   const id = req.param('id');
   if (req.userId === id) {
@@ -17,11 +28,7 @@ async function processLike(req, res, modifier, requireEvents) {
       return res.notFound(`User with id ${id} not found.`);
     }
 
-    // User can only like another user once. User can also not unlike other user if not liked previously.
-    // Check the list of events what is the last event and act accordingly.
-    const where = { fromUser: req.userId, toUser: user.id };
-    const lastLikeEvent = await LikeEvent.find({ where, sort: 'id DESC', limit: 1 });
-    if ((requireEvents && lastLikeEvent.length === 0) || (lastLikeEvent.length && lastLikeEvent[0].modifier === modifier)) {
+    if (!await isLastEventValid(req.userId, user.id, modifier, requireEvents)) {
       return res.badRequest('Cannot like/unlike user multiple times.');
     }
 
@@ -30,6 +37,11 @@ async function processLike(req, res, modifier, requireEvents) {
     // (same number of likes). If it was changed during our processing then we load fresh copy of the user and try again.
     let updatedRecords = await User.update({ id: user.id, numLikes: user.numLikes }, { numLikes: user.numLikes + modifier });
     while (updatedRecords.length !== 1) {
+      // We have to recheck the last event in case the current user just liked the user (issuing multiple parallel requests).
+      if (!await isLastEventValid(req.userId, user.id, modifier, requireEvents)) {
+        return res.badRequest('Cannot like/unlike user multiple times.');
+      }
+      // Fetch fresh user information and try again.
       user = await User.findOneById(id);
       updatedRecords = await User.update({ id: user.id, numLikes: user.numLikes }, { numLikes: user.numLikes + modifier });
     }

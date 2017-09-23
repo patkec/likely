@@ -77,6 +77,27 @@ describe('UserController', function() {
         expect(likeEvents[0].fromUser).to.equal(currentUser.id);
         expect(userToLike.numLikes).to.equal(1);
       });
+
+      it('should handle multiple parallel requests', async () => {
+        const responses = [];
+        const requests = _.range(3).map(() => request(sails.hooks.http.app)
+          .post(`/user/${userToLike.id}/like`)
+          .set('Authorization', `Bearer ${token}`)
+          .then((response) => {
+            responses.push(response.status);
+          })
+        );
+
+        await Promise.all(requests);
+
+        // Expect exactly one 200 success and two 400 failures.
+        const successResponses = _.without(responses, 400);
+        expect(successResponses.length).to.equal(1);
+        expect(successResponses[0]).to.equal(200);
+
+        const user = await User.findOneById(userToLike.id);
+        expect(user.numLikes).to.equal(1);
+      });
     });
   });
 
@@ -129,10 +150,10 @@ describe('UserController', function() {
   describe('#mostLiked()', function() {
     it('should return users sorted from most to least liked', async function() {
       const userCount = 10;
-      const tasks = [];
-      for (let i = 0; i < userCount; i++) {
-        tasks.push(User.create({ username: `user${i}`, password: 'test', numLikes: i }));
-      }
+      const tasks = _.range(userCount).map((i) =>
+        User.create({ username: `user${i}`, password: 'test', numLikes: i })
+      );
+
       await Promise.all(tasks);
 
       await request(sails.hooks.http.app)

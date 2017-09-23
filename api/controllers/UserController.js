@@ -26,12 +26,12 @@ async function processLike(req, res, modifier, requireEvents) {
     }
 
     const likeEvent = await LikeEvent.create({ fromUser: req.userId, toUser: user.id, modifier });
-    // We do a classical loop of "interlocked compare exchange". We want to update the user from the state when it was loaded.
-    // If it was changed during our processing then we load fresh copy of the user and try again.
-    let updatedRecords = await User.update({ id: user.id, updatedAt: user.updatedAt }, { numLikes: user.numLikes + modifier });
+    // We do a classical loop of "interlocked compare exchange". We want to update the user from the state when it was loaded
+    // (same number of likes). If it was changed during our processing then we load fresh copy of the user and try again.
+    let updatedRecords = await User.update({ id: user.id, numLikes: user.numLikes }, { numLikes: user.numLikes + modifier });
     while (updatedRecords.length !== 1) {
       user = await User.findOneById(id);
-      updatedRecords = await User.update({ id: user.id, updatedAt: user.updatedAt }, { numLikes: user.numLikes + modifier });
+      updatedRecords = await User.update({ id: user.id, numLikes: user.numLikes }, { numLikes: user.numLikes + modifier });
     }
 
     return res.ok();

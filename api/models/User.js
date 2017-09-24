@@ -6,11 +6,12 @@
  */
 
 const bcrypt = require('bcrypt');
+const Promise = require('bluebird');
 
 async function hashPassword(values, cb) {
   try {
     if (values.password) {
-      const hashedPassword = await promisify(bcrypt.hash)(values.password, 10);
+      const hashedPassword = await Promise.promisify(bcrypt.hash)(values.password, 10);
       values.password = hashedPassword;
     }
     cb();
@@ -45,7 +46,7 @@ module.exports = {
     },
 
     validatePassword: function(password) {
-      return promisify(bcrypt.compare)(password, this.password);
+      return Promise.promisify(bcrypt.compare)(password, this.password);
     }
   },
 

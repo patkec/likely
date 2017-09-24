@@ -55,29 +55,25 @@ describe('UserController', function() {
   });
 
   const actions = [
-    {
-      name: 'like',
-      modifier: 1,
-      initialState: 0,
-      prepareSuccess: function() {},
-      prepareConflict: function(fromUser, toUser) {
-        return Like.create({ fromUser, toUser });
-      }
-    },
-    {
-      name: 'unlike',
-      modifier: -1,
-      initialState: 2,
-      prepareSuccess: function(fromUser, toUser) {
-        return Like.create({ fromUser, toUser });
-      },
-      prepareConflict: function() {}
-    }
+    { name: 'like', modifier: 1 },
+    { name: 'unlike', modifier: -1 }
   ];
 
   actions.forEach((action) => {
     describe(`#${action.name}()`, function() {
       helpers.testAuthentication((endpoint) => endpoint.post(`/user/1/${action.name}`));
+
+      function prepareSuccess() { return 0; }
+      async function prepareConflict(fromUser, toUser) {
+        await Like.create({ fromUser, toUser });
+        toUser.numLikes++;
+        await toUser.save();
+        return 1;
+      }
+
+      // Preparation phases for like and unlike are inverted.
+      action.prepareSuccess = action.modifier === 1 ? prepareSuccess : prepareConflict;
+      action.prepareConflict = action.modifier === 1 ? prepareConflict : prepareSuccess;
 
       describe('with valid token', function() {
         let token;
@@ -88,7 +84,7 @@ describe('UserController', function() {
           currentUser = await User.create({ username: 'test1', password: 'test' });
           token = await JWT.issue({ sub: currentUser.id });
 
-          targetUser = await User.create({ username: 'test2', password: 'test', numLikes: action.initialState });
+          targetUser = await User.create({ username: 'test2', password: 'test' });
         });
 
         function callEndpoint(userId, token) {
@@ -99,24 +95,24 @@ describe('UserController', function() {
           await callEndpoint(666, token).expect(404);
         });
 
-        it(`should return error if specified user is ${action.name}d by current user`, async function() {
+        it(`should return error if specified user is already ${action.name}d by current user`, async function() {
           await action.prepareConflict(currentUser, targetUser);
 
           await callEndpoint(targetUser.id, token).expect(400);
         });
 
         it(`should return success and update likes if ${action.name} is successful`, async function() {
-          await action.prepareSuccess(currentUser, targetUser);
+          const numLikes = await action.prepareSuccess(currentUser, targetUser);
 
           await callEndpoint(targetUser.id, token).expect(200);
 
           // Refresh the user to get correct likes.
           targetUser = await User.findOneById(targetUser.id);
-          expect(targetUser.numLikes).to.equal(action.initialState + action.modifier);
+          expect(targetUser.numLikes).to.equal(numLikes + action.modifier);
         });
 
         it('should handle multiple parallel requests from same user', async () => {
-          await action.prepareSuccess(currentUser, targetUser);
+          const numLikes = await action.prepareSuccess(currentUser, targetUser);
 
           const responses = [];
           const requests = _.range(3).map(() =>
@@ -131,15 +127,15 @@ describe('UserController', function() {
           expect(successResponses[0]).to.equal(200);
 
           const user = await User.findOneById(targetUser.id);
-          expect(user.numLikes).to.equal(action.initialState + action.modifier);
+          expect(user.numLikes).to.equal(numLikes + action.modifier);
         });
 
         it('should handle multiple parallel requests from different users', async () => {
           const anotherUser = await User.create({ username: 'test3', password: 'test' });
           const anotherToken = await JWT.issue({ sub: anotherUser.id });
 
-          await action.prepareSuccess(currentUser, targetUser);
-          await action.prepareSuccess(anotherUser, targetUser);
+          const numLikes = await action.prepareSuccess(currentUser, targetUser) +
+                           await action.prepareSuccess(anotherUser, targetUser);
 
           const responses = [];
           const requests = [
@@ -154,7 +150,7 @@ describe('UserController', function() {
           });
 
           const user = await User.findOneById(targetUser.id);
-          expect(user.numLikes).to.equal(action.initialState + 2 * action.modifier);
+          expect(user.numLikes).to.equal(numLikes + 2 * action.modifier);
         });
       });
     });

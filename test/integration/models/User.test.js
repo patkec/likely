@@ -19,32 +19,6 @@ describe('UserModel', function() {
     expect(user.password).to.not.equal('updated');
   });
 
-  describe('#hasLikeFrom', () => {
-    let user1;
-    let user2;
-
-    beforeEach(async function() {
-      user1 = await User.create({ username: 'test1', password: 'test' });
-      user2 = await User.create({ username: 'test2', password: 'test' });
-    });
-
-    it('should return false if there are no like events', async function() {
-      expect(await user1.hasLikeFrom(user2)).to.be.false;
-    });
-
-    it('should return false if last event is unlike', async function() {
-      await LikeEvent.create({ fromUser: user2, toUser: user1, modifier: -1 });
-
-      expect(await user1.hasLikeFrom(user2)).to.be.false;
-    });
-
-    it('should return true if last event is like', async function() {
-      await LikeEvent.create({ fromUser: user2, toUser: user1, modifier: 1 });
-
-      expect(await user1.hasLikeFrom(user2)).to.be.false;
-    });
-  });
-
   describe('#toJSON()', function() {
     it('should not contain a password field', async function() {
       const user = await User.create({ username: 'test', password: 'test' });

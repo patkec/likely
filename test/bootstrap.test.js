@@ -6,9 +6,12 @@ before(function(done) {
 
   sails.lift({
     connections: {
-      localDiskDb: {
+      inMemoryDb: {
         adapter: 'sails-memory'
       }
+    },
+    models: {
+      connection: 'inMemoryDb'
     }
   }, function(err) {
     if (err) return done(err);

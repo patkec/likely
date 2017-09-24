@@ -27,7 +27,7 @@ module.exports = function unauthorized(data) {
   res.set('WWW-Authenticate', 'Bearer');
 
   // Log error to console
-  if (data !== undefined) {
+  if (typeof data !== 'undefined') {
     sails.log.verbose('Sending 401 ("Unauthorized") response: \n', data);
   }
   else sails.log.verbose('Sending 401 ("Unauthorized") response');
